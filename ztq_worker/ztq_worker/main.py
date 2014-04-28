@@ -25,6 +25,8 @@ def main(config):
     """
 
     server = config['server']
+    module_path = server['module_path']
+    sys.path.append(module_path)
     # 动态注册task
     for module in server['modules'].split():
         try:

@@ -39,7 +39,17 @@ def main(config):
     redis_host = server['host']
     redis_port = int(server['port'])
     redis_db = int(server['db'])
-    ztq_core.setup_redis('default', host=redis_host, port=redis_port, db=redis_db)
+    # 是否启用 sentinel
+    enable_sentinel = server['enable_sentinel'].lower() == 'true'
+    # 对应的 sentinel service_name
+    sentinel_name = server['sentinel_name']
+    if enable_sentinel:
+        # 当启用 sentinel 时
+        # 配置的host, port, db等信息变为了sentinel的主机信息
+        ztq_core.setup_sentinel('default', [(redis_host, redis_port)],
+                [sentinel_name], db = redis_db)
+    else:
+        ztq_core.setup_redis('default', host=redis_host, port=redis_port, db=redis_db)
 
     # 开启一个命令线程
     alias = server.get('alias', '')

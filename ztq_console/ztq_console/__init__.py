@@ -7,16 +7,60 @@ from pyramid.authentication import AuthTktAuthenticationPolicy
 from pyramid.authorization import ACLAuthorizationPolicy
 from ztq_console.utils import models
 from ztq_console.utils.security import groupfinder
+from views import MENU_CONFIG
 
 
-def main(global_config, redis_host='127.0.0.1', redis_port='6379', \
-        redis_db='0', frs_root='frs', init_dispatcher_config='true', \
+def main(global_config, frs_root='frs', init_dispatcher_config='true', \
         frs_cache='frscache', addon_config=None, work_enable=True, **settings):
     """ This function returns a Pyramid WSGI application.
     """
+    
+    # 是否启用sentinel
+    enable_sentinel = settings.get('enable_sentinel', 'false').lower() == 'true'
+    # 如果启用sentinel，则关于redis的host,port,db都为对sentinel的配置
+    if enable_sentinel:
+        # 主机列表
+        hosts = settings.get('sentinel_hosts', None)
+        assert(hosts)
+        # sentinel的所有services name
+        services = settings.get('sentinel_names', None)
+        assert(services)
+        # 使用的数据库
+        db = int(settings.get('sentinel_db', '0'))
+        assert(db >= 0)
 
-    # 初始化Redis连接
-    ztq_core.setup_redis('default', redis_host, port=int(redis_port), db=int(redis_db),)
+        services = services.split(',')
+        ztq_core.setup_sentinel('default', 
+                map(lambda x: (x[0], int(x[1])), [host.split(':') for host in hosts.split(',')]),
+                services, db = db)
+        # 如果启用了sentinel
+        # servers 列表为所有的 services
+        MENU_CONFIG['servers'] = services
+        MENU_CONFIG['current_redis'] = services[0]
+        MENU_CONFIG['enable_sentinel'] = True
+    else:
+        redis_host = settings.get('redis_host', '127.0.0.1')
+        redis_port = int(settings.get('redis_port', '6379'))
+        redis_db = int(settings.get('redis_db', '0'))
+        # 初始化Redis连接
+        ztq_core.setup_redis('default', redis_host, port=int(redis_port), db=int(redis_db),)
+        # 初始化servers
+        # servers 格式
+        # name:host:port:db:title, ......
+        servers = settings.get('servers', None)
+        if servers:
+            for server in servers.split(','):
+                texts = server.split(':')
+                MENU_CONFIG['servers'].append({
+                        'name'  : texts[0],
+                        'host'  : texts[1],
+                        'port'  : int(texts[2]),
+                        'db'    : int(texts[3]),
+                        'title' : texts[4] if len(texts) == 5 else texts[0],
+                    })
+
+            MENU_CONFIG['current_redis'] = MENU_CONFIG['servers'][0]['name']
+        MENU_CONFIG['enable_sentinel'] = False
     # 初始化权重数据数据,如果权重配置已经存在则pass
     if init_dispatcher_config.lower() == 'true':
         # init_dispatcher_config 是因为控制台可能没有运行服务， 这里去读取redis数据，会导致控制台起不来

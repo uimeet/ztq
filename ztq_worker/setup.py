@@ -7,15 +7,16 @@ CHANGES = open(os.path.join(here, 'CHANGES.txt')).read()
 
 setup (
     name='ztq_worker',
-    version='1.2.7',
-    author = "xutaozhe",
-    author_email = "xutaozhe@zopen.cn",
+    version='1.2.8',
+    author = "xutaozhe,Tianzhen",
+    author_email = "uimeet@gmail.com",
+    url="https://github.com/uimeet/ztq",
     description=u"Zopen Task Queue Worker",
     long_description=README + '\n\n' +  CHANGES,
     license = "MIT",
     keywords='Everydo queue async ztq_worker',
     classifiers = [
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Beta',
         'Environment :: Web Environment',
         'Intended Audience :: Developers',
         'Programming Language :: Python',

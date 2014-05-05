@@ -15,14 +15,14 @@ from utils.security import USERS
 current_redis = None
 MENU_CONFIG = {'title':u'ZTQ队列监控后台',
                'servers':[
-                          {'name':'redis_01', 'host':'127.0.0.1', 'port':6379,
-                              'db':1, 'title':'redis_01'},
-                          {'name':'redis_02', 'host':'127.0.0.1', 'port':6780,
-                              'db':1, 'title':'redis_02'},
-                          {'name':'redis_03', 'host':'127.0.0.1', 'port':6381,
-                              'db':1, 'title':'redis_03'},
-                          {'name':'redis_04', 'host':'127.0.0.1', 'port':6382,
-                              'db':1, 'title':'redis_04'},
+                          #{'name':'redis_01', 'host':'127.0.0.1', 'port':6379,
+                          #    'db':1, 'title':'redis_01'},
+                          #{'name':'redis_02', 'host':'127.0.0.1', 'port':6780,
+                          #    'db':1, 'title':'redis_02'},
+                          #{'name':'redis_03', 'host':'127.0.0.1', 'port':6381,
+                          #    'db':1, 'title':'redis_03'},
+                          #{'name':'redis_04', 'host':'127.0.0.1', 'port':6382,
+                          #    'db':1, 'title':'redis_04'},
                         ],
                'current_redis':'redis_01',
                'links':[('/workerstatus', u'工作状态'),
@@ -96,10 +96,18 @@ def switch_redis(request):
     """
     redis_key = request.params.get('redis_name', '')
     for server in MENU_CONFIG['servers']:
-        if server['name'] == redis_key:
-            ztq_core.setup_redis('default', host=server['host'], port=server['port'], db=server.get('db', 1))
-            MENU_CONFIG['current_redis'] = redis_key
-            break
+        if isinstance(server, dict):
+            if server['name'] == redis_key:
+                ztq_core.setup_redis('default', host=server['host'], port=server['port'], db=server.get('db', 1))
+                MENU_CONFIG['current_redis'] = redis_key
+                break
+        elif isinstance(server, (str, unicode)):
+            if server == redis_key:
+                # 当 server 是一个字符串时，则表示启用了sentinel
+                # 而这个 server 是，sentinel 要使用的服务名称
+                ztq_core.set_default_sentinel(server)
+                MENU_CONFIG['current_redis'] = redis_key
+                break
 
     route_name = request.view_name
     return HTTPFound(location="/")

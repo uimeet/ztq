@@ -12,10 +12,10 @@ if not os.sys.platform.startswith('win'):
     requires.append('hiredis')
 
 setup(name='ztq_core',
-      version = '1.2.4',
-      author="edo",
-      author_email="service@everydo.com",
-      url="http://everydo.com/",
+      version = '1.2.5',
+      author="edo,Tianzhen",
+      author_email="uimeet@gmail.com",
+      url="https://github.com/uimeet/ztq",
       description=u"Zopen Task Queue Core",
       long_description=README + '\n\n' +  CHANGES,
       packages=find_packages(),
@@ -23,7 +23,7 @@ setup(name='ztq_core',
       platforms=["Any"],
       keywords='Everydo queue ztq_core async',
       classifiers = [
-          'Development Status :: 4 - Beta',
+          'Development Status :: 5 - Beta',
           'Environment :: Web Environment',
           'Intended Audience :: Developers',
           'Programming Language :: Python',

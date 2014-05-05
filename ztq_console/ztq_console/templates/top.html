@@ -13,13 +13,19 @@
             <span>当前监控的服务：</span>
             <select name="redis_name">
                 {% for server in servers %}
-                     {% if server['name'] == current_redis%}
-                         <option value ="{{server['name']}}" selected='selected'>{{server['title']}}</option>
-
-                      {% else %}
-                         <option value ="{{server['name']}}" >{{server['title']}}</option>
-
-                      {% endif %}   
+                    {% if enable_sentinel == False %}
+                        {% if server['name'] == current_redis%}
+                            <option value ="{{server['name']}}" selected='selected'>{{server['title']}}</option>
+                        {% else %}
+                            <option value ="{{server['name']}}" >{{server['title']}}</option>
+                        {% endif %}   
+                    {% else %}
+                        {% if server == current_redis %}
+                            <option value ="{{server}}" selected='selected'>{{server}}</option>
+                        {% else %}
+                            <option value ="{{server}}" >{{server}}</option>
+                        {% endif %}   
+                    {% endif %}
                 {% endfor %}
             </select>
             <input type="submit" value="切换"/>

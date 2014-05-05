@@ -5,13 +5,15 @@ from redis_wrap import (
         get_hash, 
         get_set, 
         setup_redis, 
+        setup_sentinel,
         get_key, 
         set_key, 
         get_queue, 
         get_dict, 
         ConnectionError,
-        ResponseError
-        )
+        ResponseError,
+        set_default_sentinel,
+    )
 
 from task import (
         task_registry, 
@@ -23,7 +25,7 @@ from task import (
         push_runtime_error,
         gen_task, 
         push_runtime_task
-        )
+    )
 
 from model import *
 

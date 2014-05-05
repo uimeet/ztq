@@ -1,6 +1,7 @@
 #coding:utf-8
 
 import redis
+from redis.sentinel import Sentinel
 import pickle
 try:
     import json
@@ -12,18 +13,98 @@ import UserDict, UserList
 ConnectionError = redis.exceptions.ConnectionError
 ResponseError = redis.exceptions.ResponseError
 
+# 是否使用sentinel
+USE_SENTINEL = False
+# 默认的sentinel service_name
+DEFAULT_SENTINEL_NAME = None
+# 默认编码
 DEFAULT_ENCODING = 'UTF-8' # sys.getdefaultencoding()
 #--- System related ----------------------------------------------
-SYSTEMS = {
-    'default': redis.Redis(host='localhost', port=6379)
-}
+SYSTEMS = {}
 
+class UnknownSystemError(Exception):
+    "当尝试获取一个未配置的System时触发"
+    def __init__(name):
+        self.name = name
+
+    def __repr__(self):
+        return repr('Unknown system name: %s' % self.name)
 
 def setup_redis(name, host, port, db=0, **kw):
+    # 若使用该方法启动队列服务
+    # 则默认禁用 sentinel
+    global USE_SENTINEL
+
+    if USE_SENTINEL == True:
+        SYSTEMS.clear()
+        USE_SENTINEL = False
+
     SYSTEMS[name] = redis.Redis(host=host, port=port, db=db, **kw)
 
-def get_redis(system='default'):
-    return SYSTEMS[system]
+def setup_sentinel(name, hosts, services, db = 0, socket_timeout = 0.1):
+    """
+    @hosts as list, sentinel 主机列表，格式：
+        [(ip1, port1), (ip2, port2)...]
+    @services as list, sentinel监控的服务名列表，格式：
+        ['service_name1', 'service_name2',]
+    @db as int, 使用的redis数据库
+    @socket_timeout as float, 超时时间，默认值 0.1
+    """
+    global USE_SENTINEL
+
+    iter(hosts)
+    iter(services)
+    assert(isinstance(socket_timeout, (int, float,)))
+    assert(isinstance(db, int))
+
+    # 若使用该方法启用队列服务
+    # 则默认启用 sentinel
+    if USE_SENTINEL == False:
+        # 清空之前的所有设置
+        SYSTEMS.clear()
+        USE_SENTINEL = True
+
+    SYSTEMS[name] = {
+            'sentinel'  : Sentinel(hosts, socket_timeout = socket_timeout),
+            'services'  : services,
+            'db'        : db,
+            'redis'     : {},
+        }
+
+def set_default_sentinel(name):
+    "设置默认的 sentinel 服务名"
+    global DEFAULT_SENTINEL_NAME
+
+    DEFAULT_SENTINEL_NAME = name
+
+def _get_sentinel_service(system = 'default'):
+    "获取一个sentinel服务名"
+    # 当默认名称被设置时，始终返回默认名称
+    global DEFAULT_SENTINEL_NAME
+
+    if DEFAULT_SENTINEL_NAME:
+        return DEFAULT_SENTINEL_NAME
+
+    import random
+    if system not in SYSTEMS:
+        raise UnknownSystemError(system)
+
+    services = SYSTEMS[system]['services']
+    # 获取一个随机数
+    return services[random.randint(1000000, 9999999) % len(services)]
+
+def get_redis(system = 'default', is_master = True):
+    global USE_SENTINEL
+    if USE_SENTINEL:
+        service = _get_sentinel_service(system)
+        assert(service)
+
+        sentinel = SYSTEMS[system]['sentinel']
+        return sentinel.master_for(service, db = SYSTEMS[system]['db']) \
+                if is_master else \
+                sentinel.slave_for(service, db = SYSTEMS[system]['db'])
+    else:
+        return SYSTEMS[system]
 
 #--- Decorators ----------------------------------------------
 def get_list(name, system='default',serialized_type='json'):

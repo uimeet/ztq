@@ -3,6 +3,7 @@
 import types
 from task import register, push_task, has_task, gen_task, push_buffer_task
 import transaction
+import redis_wrap
 
 use_transaction = False
 
@@ -69,6 +70,9 @@ def async(*_args, **_kw):
     if len(_args) == 1 and not _kw and isinstance(_args[0], types.FunctionType): # 不带参数的形式
         func = _args[0]
         def new_func1(*args, **kw):
+            # 每次被async装饰的方法执行时，都生成一个随机key
+            # 用于在该次会话下随机使用同一个redis
+            redis_wrap.random_hash_key()
             queue_name = kw.pop('ztq_queue', 'default')
             buffer = kw.pop('ztq_buffer', False)
             on_commit= kw.pop('ztq_transaction', use_transaction) 
@@ -84,6 +88,9 @@ def async(*_args, **_kw):
         _queue_name = _kw.get('queue', 'default')
         def _async(func):
             def new_func(*args, **kw):
+                # 每次被async装饰的方法执行时，都生成一个随机key
+                # 用于在该次会话下随机使用同一个redis
+                redis_wrap.random_hash_key()
                 #on_commit= kw.pop('ztq_transaction', _on_commit) 
                 on_commit= kw.pop('ztq_transaction', use_transaction) 
                 queue_name = kw.pop('ztq_queue', _queue_name)

@@ -21,6 +21,8 @@ DEFAULT_SENTINEL_NAME = None
 DEFAULT_ENCODING = 'UTF-8' # sys.getdefaultencoding()
 #--- System related ----------------------------------------------
 SYSTEMS = {}
+# 当前 hash key
+CURRENT_HASH_KEY = 0
 
 class UnknownSystemError(Exception):
     "当尝试获取一个未配置的System时触发"
@@ -67,7 +69,10 @@ def setup_sentinel(name, hosts, services, db = 0, socket_timeout = 0.1):
     SYSTEMS[name] = {
             'sentinel'  : Sentinel(hosts, socket_timeout = socket_timeout),
             'services'  : services,
-            'db'        : db,
+            #'db'        : db,
+            # 目前只有使用 0 库能够完全正常工作
+            # 使用其他库都不行，暂时不知道原因
+            'db'        : 0,
             'redis'     : {},
         }
 
@@ -77,10 +82,18 @@ def set_default_sentinel(name):
 
     DEFAULT_SENTINEL_NAME = name
 
+def random_hash_key():
+    "生成一个随机hashkey"
+    global CURRENT_HASH_KEY
+
+    import random
+    CURRENT_HASH_KEY = random.randint(1000000, 9999999)
+    return CURRENT_HASH_KEY
+
 def _get_sentinel_service(system = 'default'):
     "获取一个sentinel服务名"
     # 当默认名称被设置时，始终返回默认名称
-    global DEFAULT_SENTINEL_NAME
+    global DEFAULT_SENTINEL_NAME, CURRENT_HASH_KEY
 
     if DEFAULT_SENTINEL_NAME:
         return DEFAULT_SENTINEL_NAME
@@ -90,19 +103,19 @@ def _get_sentinel_service(system = 'default'):
         raise UnknownSystemError(system)
 
     services = SYSTEMS[system]['services']
-    # 获取一个随机数
-    return services[random.randint(1000000, 9999999) % len(services)]
+    # 根据hash key获取对应的
+    return services[CURRENT_HASH_KEY % len(services)]
 
 def get_redis(system = 'default', is_master = True):
     global USE_SENTINEL
     if USE_SENTINEL:
         service = _get_sentinel_service(system)
         assert(service)
-
+        # 获取 sentinel 实例
         sentinel = SYSTEMS[system]['sentinel']
-        return sentinel.master_for(service, db = SYSTEMS[system]['db']) \
+        return sentinel.master_for(service, db = SYSTEMS[system]['db'] \
                 if is_master else \
-                sentinel.slave_for(service, db = SYSTEMS[system]['db'])
+                sentinel.slave_for(service, db = SYSTEMS[system]['db']))
     else:
         return SYSTEMS[system]
 
@@ -450,3 +463,4 @@ class LimitQueueFu(QueueFu):
         pline.lpush(self.name, item).ltrim(self.name, 0, self.length)
         pline.execute()
 
+    # 获取一个随机数

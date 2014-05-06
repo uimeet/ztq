@@ -39,28 +39,35 @@ def main(global_config, frs_root='frs', init_dispatcher_config='true', \
         MENU_CONFIG['current_redis'] = services[0]
         MENU_CONFIG['enable_sentinel'] = True
     else:
-        redis_host = settings.get('redis_host', '127.0.0.1')
-        redis_port = int(settings.get('redis_port', '6379'))
-        redis_db = int(settings.get('redis_db', '0'))
-        # 初始化Redis连接
-        ztq_core.setup_redis('default', redis_host, port=int(redis_port), db=int(redis_db),)
         # 初始化servers
         # servers 格式
         # name:host:port:db:title, ......
         servers = settings.get('servers', None)
-        if servers:
-            for server in servers.split(','):
-                texts = server.split(':')
-                MENU_CONFIG['servers'].append({
-                        'name'  : texts[0],
-                        'host'  : texts[1],
-                        'port'  : int(texts[2]),
-                        'db'    : int(texts[3]),
-                        'title' : texts[4] if len(texts) == 5 else texts[0],
-                    })
-
-            MENU_CONFIG['current_redis'] = MENU_CONFIG['servers'][0]['name']
+        # servers 作为必须的配置项
+        # 取消原来的redis_host,redis_port,redis_db配置
+        assert(servers)
+        for server in servers.split(','):
+            texts = server.split(':')
+            # 单个server的配置项必须介于4-5之间
+            assert(len(texts) >= 4 and len(texts) <= 5)
+            # 添加到待管理的服务器列表中
+            MENU_CONFIG['servers'].append({
+                    'name'  : texts[0],
+                    'host'  : texts[1],
+                    'port'  : int(texts[2]),
+                    'db'    : int(texts[3]),
+                    'title' : texts[4] if len(texts) == 5 else texts[0],
+                })
+        # 默认将列表中的第一个服务器作为默认服务器
+        current_redis = MENU_CONFIG['servers'][0]
+        MENU_CONFIG['current_redis'] = current_redis['name']
+        #
+        # 初始化Redis连接
+        ztq_core.setup_redis('default'
+                , current_redis['host']
+                , current_redis['port'], current_redis['db'])
         MENU_CONFIG['enable_sentinel'] = False
+
     # 初始化权重数据数据,如果权重配置已经存在则pass
     if init_dispatcher_config.lower() == 'true':
         # init_dispatcher_config 是因为控制台可能没有运行服务， 这里去读取redis数据，会导致控制台起不来

@@ -32,7 +32,7 @@ class UnknownSystemError(Exception):
     def __repr__(self):
         return repr('Unknown system name: %s' % self.name)
 
-def setup_redis(name, host, port, db=0, **kw):
+def setup_redis(name, host, port, db = 0, **kw):
     # 若使用该方法启动队列服务
     # 则默认禁用 sentinel
     global USE_SENTINEL
@@ -113,9 +113,19 @@ def get_redis(system = 'default', is_master = True):
         assert(service)
         # 获取 sentinel 实例
         sentinel = SYSTEMS[system]['sentinel']
-        return sentinel.master_for(service, db = SYSTEMS[system]['db'] \
-                if is_master else \
-                sentinel.slave_for(service, db = SYSTEMS[system]['db']))
+        # redis客户端实例key
+        instance_key = '%(service)s:%(type)s' % {
+                    'service'   : service,
+                    'type'      : 'master' if is_master else 'slave',
+                }
+        # 同一个python进程，同一个service下，保证只有一个redis实例被创建
+        # 保证连接池的最大使用
+        if instance_key not in SYSTEMS[system]['redis']:
+            redis_new = sentinel.master_for if is_master else sentinel.slave_for
+            SYSTEMS[system]['redis'][instance_key] = redis_new(service, db = \
+                    SYSTEMS[system]['db'])
+
+        return SYSTEMS[system]['redis'][instance_key]
     else:
         return SYSTEMS[system]
 
